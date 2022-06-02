@@ -197,7 +197,7 @@ int byteNot(int x, int n) {
  */
 int byteXor(int x, int y, int n) {
   n %= 4;
-  return ((256 << (8 * n)) & x) ^ ((256 << (8 * n)) & y);
+  return !!((256 << (8 * n)) & x) ^ ((256 << (8 * n)) & y);
 }
 /* 
  *   logicalAnd - x && y
