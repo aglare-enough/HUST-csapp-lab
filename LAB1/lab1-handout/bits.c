@@ -183,7 +183,7 @@ int lsbZero(int x) {
  */
 int byteNot(int x, int n) {
   n %= 4;
-  return x ^ (256 << (8*n));
+  return x ^ (0xff << (8*n));
 }
 /* 
  *   byteXor - compare the nth byte of x and y, if it is same, return 0, if not, return 1
@@ -197,7 +197,7 @@ int byteNot(int x, int n) {
  */
 int byteXor(int x, int y, int n) {
   n %= 4;
-  return !!((256 << (8 * n)) & x) ^ ((256 << (8 * n)) & y);
+  return !!(((0xff << (8 * n)) & x) ^ ((0xff << (8 * n)) & y));
 }
 /* 
  *   logicalAnd - x && y
@@ -206,7 +206,7 @@ int byteXor(int x, int y, int n) {
  *   Rating: 3 
  */
 int logicalAnd(int x, int y) {
-  return 2;
+  return (!!x) & (!!y);
 }
 /* 
  *   logicalOr - x || y
@@ -215,7 +215,7 @@ int logicalAnd(int x, int y) {
  *   Rating: 3 
  */
 int logicalOr(int x, int y) {
-  return 2;
+  return !!x | !!y;
 }
 /* 
  * rotateLeft - Rotate x to the left by n
@@ -226,7 +226,8 @@ int logicalOr(int x, int y) {
  *   Rating: 3 
  */
 int rotateLeft(int x, int n) {
-  return 2;
+  int mask = ~(~0 << n);
+  return (x << n) | ((x >> (32 + ~n + 1))&mask);
 }
 /*
  * parityCheck - returns 1 if x contains an odd number of 1's
@@ -236,7 +237,13 @@ int rotateLeft(int x, int n) {
  *   Rating: 4
  */
 int parityCheck(int x) {
-  return 2;
+  x ^= x << 16;
+  x ^= x << 8;
+  x ^= x << 4;
+  x ^= x << 2;
+  x ^= x << 1;
+  x >>= 31;
+  return !!x;
 }
 /*
  * mul2OK - Determine if can compute 2*x without overflow
@@ -248,7 +255,10 @@ int parityCheck(int x) {
  *   Rating: 2
  */
 int mul2OK(int x) {
-  return 2;
+  // return (((x>>31)&0x1) ^ ((x>>30)&0x1))^0x1;
+  // return (~(x << 1 ^ x) >> 31) & 1;
+  return 1;
+
 }
 /*
  * mult3div2 - multiplies by 3/2 rounding toward 0,
@@ -262,7 +272,11 @@ int mul2OK(int x) {
  *   Rating: 2
  */
 int mult3div2(int x) {
-  return 2;
+  int temp1,temp2,temp3;
+  temp1 = (x + x + x);
+  temp2 = ((temp1 >> 31) & 0x1) & (temp1 & 0x1);
+  temp3 = temp1 >> 1;
+  return temp3 + temp2;
 }
 /* 
  * subOK - Determine if can compute x-y without overflow
@@ -273,7 +287,7 @@ int mult3div2(int x) {
  *   Rating: 3
  */
 int subOK(int x, int y) {
-  return 2;
+  return !(((x>>31)^(y>>31))&0x1) | !((((x + ~y +1) >> 31) ^(x>>31))&0x1) ;
 }
 /* 
  * absVal - absolute value of x
@@ -284,7 +298,8 @@ int subOK(int x, int y) {
  *   Rating: 4
  */
 int absVal(int x) {
-  return 2;
+  int y = x >> 31;
+  return (x & (~y)) + ((~x+1) & y);
 }
 /* 
  * float_abs - Return bit-level equivalent of absolute value of f for
@@ -298,7 +313,10 @@ int absVal(int x) {
  *   Rating: 2
  */
 unsigned float_abs(unsigned uf) {
-  return 2;
+  int rt;
+  rt = (~(1 << 31)) & uf;
+  if(rt > 0x7f800000) return uf;
+  return rt;
 }
 /* 
  * float_f2i - Return bit-level equivalent of expression (int) f
@@ -313,5 +331,19 @@ unsigned float_abs(unsigned uf) {
  *   Rating: 4
  */
 int float_f2i(unsigned uf) {
-  return 2;
+  int e,E,m;
+  e = (0x7f800000 & uf) >> 23;
+  m = (uf & 0x007fffff) | 0x00800000;
+  if(e == 255) return 0x80000000;
+  if(e == 0) return 0;
+  E = e - 127;
+  if (E > 31) return 0x80000000;
+  if(E < 0) return 0;
+  if(!!(uf >> 31)){
+    if(E > 23) return -(m << (E - 23));
+    else return -(m >> (23 - E));
+  }else{
+    if(E > 23) return m << (E - 23);
+    else return m >> (23 - E);
+  }
 }
